@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ma-pwa-v2';
+const CACHE_NAME = 'ma-pwa-v2.1';
 const ASSETS_TO_CACHE = [
   'pwa.thierry-morin.com/',
   'pwa.thierry-morin.com/index.html',
