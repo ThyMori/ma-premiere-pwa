@@ -1,8 +1,8 @@
-const CACHE_NAME = 'ma-pwa-v2.1';
+const CACHE_NAME = 'ma-pwa-v2.2';
 const ASSETS_TO_CACHE = [
-  'pwa.thierry-morin.com/',
-  'pwa.thierry-morin.com/index.html',
-  'pwa.thierry-morin.com/manifest.json'
+  '/',
+  '/index.html',
+  '/manifest.json'
 ];
 
 // 1. Installation : On met en cache les fichiers essentiels
