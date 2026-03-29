@@ -1,7 +1,7 @@
 {
   "name": "Ma Super PWA",
   "short_name": "SuperPWA",
-  "start_url": "/ma-premiere-pwa/index.html",
+  "start_url": "pwa.thierry-morin.com/index.html",
   "display": "standalone",
   "background_color": "#f0f0f0",
   "theme_color": "#2c3e50",
