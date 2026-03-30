@@ -88,7 +88,7 @@
 </head>
 <body>
 
-    <h1>📦 Mon Stock ON-LINE !</h1>
+    <h1>📦 Mon Stock ON-LINE ! v0.3</h1>
 
     <!-- Formulaire d'ajout -->
     <div class="card">
@@ -160,18 +160,18 @@
                 messageVide.style.display = 'none';
                 
                 // On boucle sur chaque produit pour créer son affichage
-                monStock.forEach((produit, index) => {
+                monStock.forEach((produit) => {
                     const li = document.createElement('li');
                     li.className = 'stock-item';
                     li.innerHTML = `
                         <div class="item-info">
                             <span class="item-name">${produit.nom}</span>
-                            <span class="item-qty">Réf: ${index + 1}</span>
+                            <span class="item-qty">ID: ${produit.id}</span>
                         </div>
                         <div class="controls">
-                            <button class="btn-ctrl btn-minus" onclick="modifierStock(${index}, -1)">-</button>
+                            <button class="btn-ctrl btn-minus" onclick="modifierStock(${produit.id}, -1)">-</button>
                             <span class="qty-display">${produit.quantite}</span>
-                            <button class="btn-ctrl btn-plus" onclick="modifierStock(${index}, 1)">+</button>
+                            <button class="btn-ctrl btn-plus" onclick="modifierStock(${produit.id}, 1)">+</button>
                         </div>
                     `;
                     liste.appendChild(li);
@@ -179,10 +179,11 @@
             }
         }
 
-        // 3. Fonction pour ajouter un produit
-        function ajouterProduit() {
+        // 3. Fonction pour ajouter un produit (envoie vers la base de donnée)
+        async function ajouterProduit() {
             const nomInput = document.getElementById('nomProduit');
             const qtyInput = document.getElementById('qtyProduit');
+            const btn = document.getElementById('btnAjouter');
             
             const nom = nomInput.value.trim();
             const quantite = parseInt(qtyInput.value) || 0;
@@ -192,35 +193,58 @@
                 return;
             }
 
-            // On ajoute au tableau
-            monStock.push({ nom: nom, quantite: quantite });
-            
-            // On sauvegarde et on affiche
-            sauvegarderStock();
-            afficherStock();
-            
-            // On vide les champs
-            nomInput.value = "";
-            qtyInput.value = "0";
-            nomInput.focus(); // On remet le curseur dans le champ nom
+              // Désactiver le bouton pendant l'envoi
+            btn.disabled = true;
+            btn.textContent = "Enregistrement...";
+
+            // Insertion dans Supabase
+            const { data, error } = await supabase
+                .from('stock')
+                .insert([{ nom: nom, quantite: quantite }])
+                .select(); // On récupère l'objet créé pour mettre à jour l'affichage
+
+            if (error) {
+                console.error('Erreur insertion:', error);
+                alert("Erreur lors de l'ajout.");
+            } else {
+                // Ajout local pour l'affichage immédiat
+                monStock.unshift(data[0]); 
+                afficherStock();
+                // Reset des champs
+                nomInput.value = "";
+                qtyInput.value = "0";
+                nomInput.focus();
+            }
+
+            btn.disabled = false;
+            btn.textContent = "Ajouter au stock";
         }
 
         // 4. Fonction pour modifier la quantité (+ ou -)
-        function modifierStock(index, variation) {
-            monStock[index].quantite += variation;
-            
-            // Optionnel : empêcher les quantités négatives
-            if (monStock[index].quantite < 0) {
-                monStock[index].quantite = 0;
-            }
+        async function modifierStock(id, variation) {
+             // Trouver le produit local pour connaître sa quantité actuelle
+             const produit = monStock.find(p => p.id === id);
+            if (!produit) return;
 
-            sauvegarderStock();
+            const nouvelleQuantite = produit.quantite + variation;
+            if (nouvelleQuantite < 0) return; // Pas de stock négatif
+
+            // Mise à jour optimiste (on change l'écran tout de suite)
+            produit.quantite = nouvelleQuantite;
             afficherStock();
-        }
 
-        // 5. Fonction de sauvegarde dans le téléphone
-        function sauvegarderStock() {
-            localStorage.setItem('monStockPWA', JSON.stringify(monStock));
+            // Envoi de la mise à jour à Supabase en arrière-plan
+            const { error } = await supabase
+                .from('stock')
+                .update({ quantite: nouvelleQuantite })
+                .eq('id', id);
+
+            if (error) {
+                console.error('Erreur mise à jour:', error);
+                alert("Erreur de synchronisation. La valeur n'a pas été sauvegardée en ligne.");
+                // Ici, on pourrait recharger les données pour corriger l'écran
+                chargerStock();
+            }
         }
 
         // Lancer le chargement quand la page est prête
