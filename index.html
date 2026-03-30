@@ -37,7 +37,7 @@
 </head>
 <body>
 
-    <h1>📦 Mon Stock ON-LINE ! v0.51</h1>
+    <h1>📦 Mon Stock ON-LINE ! v0.6</h1>
 
     <div class="card">
         <div class="input-group">
@@ -57,31 +57,74 @@
     <div id="messageVide" class="empty-msg" style="display:none;">Aucun produit en stock.</div>
 
     <!-- UN SEUL BLOC SCRIPT SANS CONFLIT -->
-   <script>
+  <script>
         // 1. CONFIGURATION
         const SUPABASE_URL = 'https://lhyqnjnqvydxemjjxuoy.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoeXFuam5xdnlkeGVtamp4dW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzM5NjcsImV4cCI6MjA5MDQ0OTk2N30.tiRBGOG-rv9grgYc8oGo3-wyAd5RF8d3x_dmjaDZkZk';
         
-        // SOLUTION : On utilise un nom unique que personne d'autre n'utilise
         const monSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let monStock = [];
 
-        // 2. CHARGEMENT
+        // 2. CHARGEMENT INITIAL
         async function chargerStock() {
-            // On utilise monSupabase ici
             const { data, error } = await monSupabase.from('stock').select('*').order('created_at', { ascending: false });
             if (error) {
-                console.error('Erreur:', error);
-                document.getElementById('loading').textContent = "Erreur de connexion. Vérifiez la console (F12).";
+                console.error('Erreur chargement:', error);
+                document.getElementById('loading').textContent = "Erreur de connexion.";
                 return;
             }
             monStock = data || [];
             document.getElementById('loading').style.display = 'none';
             afficherStock();
+            
+            // UNE FOIS CHARGÉ, ON ACTIVE LE TEMPS RÉEL
+            activerTempsReel();
         }
 
-        // 3. AFFICHAGE
+        // 3. NOUVEAU : ÉCOUTEUR EN TEMPS RÉEL
+        function activerTempsReel() {
+            console.log("📡 Activation du mode Temps Réel...");
+            
+            monSupabase
+                .channel('table-stock-changes') // Nom du canal (peut être ce que vous voulez)
+                .on('postgres_changes', 
+                    { event: '*', schema: 'public', table: 'stock' }, // On écoute TOUT (insert, update, delete) sur la table stock
+                    (payload) => {
+                        console.log('🔄 Changement détecté !', payload);
+                        gererMiseAJourTempsReel(payload);
+                    }
+                )
+                .subscribe();
+        }
+
+        // 4. NOUVEAU : LOGIQUE DE MISE À JOUR DE L'ÉCRAN
+        function gererMiseAJourTempsReel(payload) {
+            const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+            const nouveauProduit = payload.new;
+            const ancienProduit = payload.old;
+
+            if (eventType === 'INSERT') {
+                // Un nouveau produit est ajouté : on l'ajoute à la liste
+                monStock.unshift(nouveauProduit);
+            } 
+            else if (eventType === 'UPDATE') {
+                // Un produit est modifié : on trouve celui qui a le même ID et on le met à jour
+                const index = monStock.findIndex(p => p.id === nouveauProduit.id);
+                if (index !== -1) {
+                    monStock[index] = nouveauProduit;
+                }
+            } 
+            else if (eventType === 'DELETE') {
+                // Un produit est supprimé : on le retire de la liste
+                monStock = monStock.filter(p => p.id !== ancienProduit.id);
+            }
+
+            // On rafraîchit l'affichage
+            afficherStock();
+        }
+
+        // 5. AFFICHAGE (Inchangé)
         function afficherStock() {
             const liste = document.getElementById('listeStock');
             const messageVide = document.getElementById('messageVide');
@@ -108,7 +151,7 @@
             }
         }
 
-        // 4. AJOUT
+        // 6. AJOUT (Inchangé)
         async function ajouterProduit() {
             const nomInput = document.getElementById('nomProduit');
             const qtyInput = document.getElementById('qtyProduit');
@@ -117,12 +160,13 @@
 
             if (nom === "") { alert("Veuillez entrer un nom de produit."); return; }
 
-            // On utilise monSupabase ici
             const { data, error } = await monSupabase.from('stock').insert([{ nom: nom, quantite: quantite }]).select();
             if (error) {
                 console.error('Erreur insertion:', error);
                 alert("Erreur : " + error.message);
             } else {
+                // Pas besoin de monStock.unshift ici, le temps réel va le faire pour nous !
+                // Mais on le laisse pour la réactivité immédiate sur l'appareil qui fait l'action
                 monStock.unshift(data[0]);
                 afficherStock();
                 nomInput.value = "";
@@ -131,7 +175,7 @@
             }
         }
 
-        // 5. MODIFICATION
+        // 7. MODIFICATION (Inchangé)
         async function modifierStock(id, variation) {
             const produit = monStock.find(p => p.id === id);
             if (!produit) return;
@@ -141,7 +185,6 @@
             produit.quantite = nouvelleQuantite;
             afficherStock();
 
-            // On utilise monSupabase ici
             const { error } = await monSupabase.from('stock').update({ quantite: nouvelleQuantite }).eq('id', id);
             if (error) {
                 console.error('Erreur update:', error);
