@@ -6,6 +6,9 @@
     <title>Gestion de Stock - Thierry</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
+
+    <!-- Ajout de la librairie Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         /* --- STYLE (CSS) --- */
@@ -85,7 +88,7 @@
 </head>
 <body>
 
-    <h1>📦 Mon Stock</h1>
+    <h1>📦 Mon Stock ON-LINE !</h1>
 
     <!-- Formulaire d'ajout -->
     <div class="card">
@@ -100,24 +103,47 @@
         <button class="btn-add" onclick="ajouterProduit()">Ajouter au stock</button>
     </div>
 
+    
+    <div id="loading" class="loading">Chargement des données...</div>
     <!-- Liste des produits -->
-    <ul id="listeStock" class="stock-list">
-        <!-- Les produits s'afficheront ici automatiquement -->
-    </ul>
-    <div id="messageVide" class="empty-msg">Aucun produit en stock.</div>
+    <ul id="listeStock" class="stock-list"></ul>
+    <div id="messageVide" class="empty-msg" style="display:none;">Aucun produit en stock.</div>
 
-    <script>
+<!-- Définition des constantes globales -->
+
+   <script>
         /* --- LOGIQUE (JAVASCRIPT) --- */
 
-        // 1. Chargement des données au démarrage
+    /* --- CONFIGURATION SUPABASE --- */
+        // REMPLACEZ CECI PAR VOS VRAIES VALEURS
+        const SUPABASE_URL = 'https://lhyqnjnqvydxemjjxuoy.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_lm8_jx_q7cNaBDzvIFN8iw_nr2CY1dh';
+
+        // Initialisation du client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         let monStock = [];
 
-        function chargerStock() {
-            // On récupère les données du localStorage (mémoire du navigateur)
-            const donnees = localStorage.getItem('monStockPWA');
-            if (donnees) {
-                monStock = JSON.parse(donnees);
+        // 1. Chargement des données depuis la base de données
+        async function chargerStock() {
+            const loadingDiv = document.getElementById('loading');
+            const liste = document.getElementById('listeStock');
+            
+            // Appel à Supabase pour récupérer toutes les lignes de la table 'stock'
+            const { data, error } = await supabase
+                .from('stock')
+                .select('*')
+                .order('created_at', { ascending: false }); // Les plus récents en premier
+
+            if (error) {
+                console.error('Erreur de chargement:', error);
+                alert("Erreur de connexion à la base de données. Vérifiez vos clés API.");
+                loadingDiv.style.display = 'none';
+                return;
             }
+
+            monStock = data || [];
+            loadingDiv.style.display = 'none';
             afficherStock();
         }
 
