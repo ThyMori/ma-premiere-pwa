@@ -37,7 +37,7 @@
 </head>
 <body>
 
-    <h1>📦 Mon Stock ON-LINE ! v0.5</h1>
+    <h1>📦 Mon Stock ON-LINE ! v0.51</h1>
 
     <div class="card">
         <div class="input-group">
@@ -57,17 +57,20 @@
     <div id="messageVide" class="empty-msg" style="display:none;">Aucun produit en stock.</div>
 
     <!-- UN SEUL BLOC SCRIPT SANS CONFLIT -->
-    <script>
+   <script>
         // 1. CONFIGURATION
         const SUPABASE_URL = 'https://lhyqnjnqvydxemjjxuoy.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoeXFuam5xdnlkeGVtamp4dW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzM5NjcsImV4cCI6MjA5MDQ0OTk2N30.tiRBGOG-rv9grgYc8oGo3-wyAd5RF8d3x_dmjaDZkZk';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // SOLUTION : On utilise un nom unique que personne d'autre n'utilise
+        const monSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
         let monStock = [];
 
         // 2. CHARGEMENT
         async function chargerStock() {
-            const { data, error } = await supabase.from('stock').select('*').order('created_at', { ascending: false });
+            // On utilise monSupabase ici
+            const { data, error } = await monSupabase.from('stock').select('*').order('created_at', { ascending: false });
             if (error) {
                 console.error('Erreur:', error);
                 document.getElementById('loading').textContent = "Erreur de connexion. Vérifiez la console (F12).";
@@ -114,7 +117,8 @@
 
             if (nom === "") { alert("Veuillez entrer un nom de produit."); return; }
 
-            const { data, error } = await supabase.from('stock').insert([{ nom: nom, quantite: quantite }]).select();
+            // On utilise monSupabase ici
+            const { data, error } = await monSupabase.from('stock').insert([{ nom: nom, quantite: quantite }]).select();
             if (error) {
                 console.error('Erreur insertion:', error);
                 alert("Erreur : " + error.message);
@@ -137,10 +141,11 @@
             produit.quantite = nouvelleQuantite;
             afficherStock();
 
-            const { error } = await supabase.from('stock').update({ quantite: nouvelleQuantite }).eq('id', id);
+            // On utilise monSupabase ici
+            const { error } = await monSupabase.from('stock').update({ quantite: nouvelleQuantite }).eq('id', id);
             if (error) {
                 console.error('Erreur update:', error);
-                chargerStock(); // Recharger en cas d'erreur
+                chargerStock();
             }
         }
 
