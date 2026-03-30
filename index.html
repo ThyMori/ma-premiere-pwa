@@ -3,61 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion de Stock - Thierry</title>
+    <title>Gestion de Stock Sécurisée</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
-
-    <!-- Ajout de la librairie Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
         h1 { text-align: center; color: #2c3e50; font-size: 1.5rem; }
+        
+        /* Styles de l'application */
+        .app-container { display: none; } /* Caché par défaut */
         .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .input-group { margin-bottom: 10px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
         input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; box-sizing: border-box; }
         button.btn-add { width: 100%; background-color: #27ae60; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; }
-        button.btn-add:active { background-color: #219150; }
         .stock-list { list-style: none; padding: 0; }
         .stock-item { background: white; border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .stock-item:first-child { border-top-left-radius: 10px; border-top-right-radius: 10px; }
         .stock-item:last-child { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; border-bottom: none; }
         .item-info { flex-grow: 1; }
         .item-name { font-weight: bold; display: block; }
-        .item-qty { font-size: 0.85rem; color: #777; }
         .controls { display: flex; gap: 10px; align-items: center; }
-        .btn-ctrl { width: 30px; height: 30px; border-radius: 50%; border: none; font-weight: bold; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn-minus { background-color: #e74c3c; color: white; }
-        .btn-plus { background-color: #3498db; color: white; }
-        .qty-display { font-weight: bold; min-width: 30px; text-align: center; }
-        .empty-msg { text-align: center; color: #999; font-style: italic; padding: 20px; }
+        .btn-ctrl { width: 30px; height: 30px; border-radius: 50%; border: none; font-weight: bold; font-size: 1.2rem; cursor: pointer; color: white; }
+        .btn-minus { background-color: #e74c3c; }
+        .btn-plus { background-color: #3498db; }
+        
+        /* Styles de la page de connexion */
+        #login-screen { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        .btn-login { width: 100%; background-color: #2c3e50; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 1rem; margin-top: 10px; cursor: pointer; }
+        .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; float: right; font-size: 0.9rem; }
+        .toggle-link { color: #3498db; cursor: pointer; text-decoration: underline; font-size: 0.9rem; margin-top: 15px; display: block; }
+        .error-msg { color: red; font-size: 0.9rem; margin-top: 10px; display: none; }
         .loading { text-align: center; color: #3498db; font-style: italic; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>📦 Mon Stock ON-LINE ! v0.6</h1>
-
-    <div class="card">
+    <!-- ÉCRAN DE CONNEXION -->
+    <div id="login-screen">
+        <h2>🔐 Authentification</h2>
         <div class="input-group">
-            <label for="nomProduit">Nom du produit</label>
-            <input type="text" id="nomProduit" placeholder="Ex: découpe 614SX">
+            <input type="email" id="email" placeholder="Votre email">
         </div>
         <div class="input-group">
-            <label for="qtyProduit">Quantité initiale</label>
-            <input type="number" id="qtyProduit" value="0" inputmode="numeric">
+            <input type="password" id="password" placeholder="Votre mot de passe">
         </div>
-        <!-- J'ai retiré l'ID btnAjouter ici pour simplifier -->
-        <button class="btn-add" onclick="ajouterProduit()">Ajouter au stock</button>
+        <button class="btn-login" onclick="handleLogin()">Se connecter</button>
+        <button class="btn-login" id="btn-signup" onclick="handleSignup()" style="background-color: #7f8c8d;">Créer un compte</button>
+        <p id="login-error" class="error-msg"></p>
+        <span class="toggle-link" onclick="toggleMode()" id="toggle-text">Pas encore de compte ? S'inscrire</span>
     </div>
 
-    <div id="loading" class="loading">Chargement des données...</div>
-    <ul id="listeStock" class="stock-list"></ul>
-    <div id="messageVide" class="empty-msg" style="display:none;">Aucun produit en stock.</div>
+    <!-- APPLICATION (Cachée tant qu'on n'est pas connecté) -->
+    <div id="app" class="app-container">
+        <button class="btn-logout" onclick="handleLogout()">Déconnexion</button>
+        <h1>📦 Mon Stock Sécurisé</h1>
+        <p style="text-align: center; font-size: 0.9rem; color: #666;">Connecté en tant que : <span id="user-email" style="font-weight: bold;"></span></p>
 
-    <!-- UN SEUL BLOC SCRIPT SANS CONFLIT -->
-  <script>
+        <div class="card">
+            <div class="input-group">
+                <label for="nomProduit">Nom du produit</label>
+                <input type="text" id="nomProduit" placeholder="Ex: découpe 614SX">
+            </div>
+            <div class="input-group">
+                <label for="qtyProduit">Quantité initiale</label>
+                <input type="number" id="qtyProduit" value="0" inputmode="numeric">
+            </div>
+            <button class="btn-add" onclick="ajouterProduit()">Ajouter au stock</button>
+        </div>
+
+        <div id="loading" class="loading">Chargement des données...</div>
+        <ul id="listeStock" class="stock-list"></ul>
+        <div id="messageVide" class="empty-msg" style="text-align: center; color: #999; display:none;">Aucun produit en stock.</div>
+    </div>
+
+    <script>
         // 1. CONFIGURATION
         const SUPABASE_URL = 'https://lhyqnjnqvydxemjjxuoy.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoeXFuam5xdnlkeGVtamp4dW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NzM5NjcsImV4cCI6MjA5MDQ0OTk2N30.tiRBGOG-rv9grgYc8oGo3-wyAd5RF8d3x_dmjaDZkZk';
@@ -65,66 +87,115 @@
         const monSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let monStock = [];
+        let estEnModeInscription = false;
 
-        // 2. CHARGEMENT INITIAL
+        // 2. GESTION DE L'AUTHENTIFICATION
+        async function verifierSession() {
+            const { data: { session } } = await monSupabase.auth.getSession();
+            if (session) {
+                afficherApplication(session.user.email);
+            } else {
+                afficherLogin();
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await monSupabase.auth.signInWithPassword({ email, password });
+            
+            if (error) afficherErreur(error.message);
+        }
+
+        async function handleSignup() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (estEnModeInscription) {
+                // Création de compte
+                const { error } = await monSupabase.auth.signUp({ email, password });
+                if (error) afficherErreur(error.message);
+                else alert("Compte créé ! Vérifiez vos emails pour confirmer (si activé) ou connectez-vous.");
+            } else {
+                // Si on clique sur "Créer un compte" sans avoir basculé le mode
+                toggleMode();
+            }
+        }
+
+        async function handleLogout() {
+            await monSupabase.auth.signOut();
+            window.location.reload();
+        }
+
+        function afficherLogin() {
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('app').style.display = 'none';
+        }
+
+        function afficherApplication(email) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            document.getElementById('user-email').textContent = email;
+            chargerStock();
+        }
+
+        function afficherErreur(msg) {
+            const el = document.getElementById('login-error');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function toggleMode() {
+            estEnModeInscription = !estEnModeInscription;
+            const btn = document.getElementById('btn-signup');
+            const txt = document.getElementById('toggle-text');
+            if (estEnModeInscription) {
+                btn.textContent = "Valider l'inscription";
+                btn.style.backgroundColor = "#27ae60";
+                txt.textContent = "Déjà un compte ? Se connecter";
+            } else {
+                btn.textContent = "Créer un compte";
+                btn.style.backgroundColor = "#7f8c8d";
+                txt.textContent = "Pas encore de compte ? S'inscrire";
+            }
+        }
+
+        // 3. GESTION DES DONNÉES (Identique à avant, mais protégé par RLS)
         async function chargerStock() {
             const { data, error } = await monSupabase.from('stock').select('*').order('created_at', { ascending: false });
             if (error) {
-                console.error('Erreur chargement:', error);
-                document.getElementById('loading').textContent = "Erreur de connexion.";
+                console.error('Erreur:', error);
+                if (error.message.includes('JWT')) handleLogout(); // Si token invalide, on déconnecte
                 return;
             }
             monStock = data || [];
             document.getElementById('loading').style.display = 'none';
             afficherStock();
-            
-            // UNE FOIS CHARGÉ, ON ACTIVE LE TEMPS RÉEL
             activerTempsReel();
         }
 
-        // 3. NOUVEAU : ÉCOUTEUR EN TEMPS RÉEL
         function activerTempsReel() {
-            console.log("📡 Activation du mode Temps Réel...");
-            
-            monSupabase
-                .channel('table-stock-changes') // Nom du canal (peut être ce que vous voulez)
-                .on('postgres_changes', 
-                    { event: '*', schema: 'public', table: 'stock' }, // On écoute TOUT (insert, update, delete) sur la table stock
-                    (payload) => {
-                        console.log('🔄 Changement détecté !', payload);
-                        gererMiseAJourTempsReel(payload);
-                    }
-                )
+            monSupabase.channel('table-stock-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, (payload) => {
+                    gererMiseAJourTempsReel(payload);
+                })
                 .subscribe();
         }
 
-        // 4. NOUVEAU : LOGIQUE DE MISE À JOUR DE L'ÉCRAN
         function gererMiseAJourTempsReel(payload) {
-            const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+            const eventType = payload.eventType;
             const nouveauProduit = payload.new;
             const ancienProduit = payload.old;
 
-            if (eventType === 'INSERT') {
-                // Un nouveau produit est ajouté : on l'ajoute à la liste
-                monStock.unshift(nouveauProduit);
-            } 
+            if (eventType === 'INSERT') monStock.unshift(nouveauProduit);
             else if (eventType === 'UPDATE') {
-                // Un produit est modifié : on trouve celui qui a le même ID et on le met à jour
                 const index = monStock.findIndex(p => p.id === nouveauProduit.id);
-                if (index !== -1) {
-                    monStock[index] = nouveauProduit;
-                }
-            } 
-            else if (eventType === 'DELETE') {
-                // Un produit est supprimé : on le retire de la liste
-                monStock = monStock.filter(p => p.id !== ancienProduit.id);
+                if (index !== -1) monStock[index] = nouveauProduit;
             }
-
-            // On rafraîchit l'affichage
+            else if (eventType === 'DELETE') monStock = monStock.filter(p => p.id !== ancienProduit.id);
             afficherStock();
         }
 
-        // 5. AFFICHAGE (Inchangé)
         function afficherStock() {
             const liste = document.getElementById('listeStock');
             const messageVide = document.getElementById('messageVide');
@@ -151,7 +222,6 @@
             }
         }
 
-        // 6. AJOUT (Inchangé)
         async function ajouterProduit() {
             const nomInput = document.getElementById('nomProduit');
             const qtyInput = document.getElementById('qtyProduit');
@@ -163,10 +233,8 @@
             const { data, error } = await monSupabase.from('stock').insert([{ nom: nom, quantite: quantite }]).select();
             if (error) {
                 console.error('Erreur insertion:', error);
-                alert("Erreur : " + error.message);
+                alert("Erreur : " + error.message); // Affichera "Permission denied" si pas connecté
             } else {
-                // Pas besoin de monStock.unshift ici, le temps réel va le faire pour nous !
-                // Mais on le laisse pour la réactivité immédiate sur l'appareil qui fait l'action
                 monStock.unshift(data[0]);
                 afficherStock();
                 nomInput.value = "";
@@ -175,7 +243,6 @@
             }
         }
 
-        // 7. MODIFICATION (Inchangé)
         async function modifierStock(id, variation) {
             const produit = monStock.find(p => p.id === id);
             if (!produit) return;
@@ -193,7 +260,7 @@
         }
 
         // Démarrage
-        chargerStock();
+        verifierSession();
 
         // Service Worker
         if ('serviceWorker' in navigator) {
